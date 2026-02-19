@@ -8,24 +8,42 @@ CHAT_ID = os.getenv("CHAT_ID")
 def get_chartink_data():
     url = "https://chartink.com/screener/stocks-10-range-2"
 
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+
     with requests.Session() as s:
-        r = s.get(url)
+        r = s.get(url, headers=headers)
         soup = BeautifulSoup(r.text, "html.parser")
 
         token = soup.find("meta", {"name": "csrf-token"})["content"]
-        s.headers["X-CSRF-TOKEN"] = token
+        s.headers.update({
+            "X-CSRF-TOKEN": token,
+            "User-Agent": "Mozilla/5.0",
+            "Referer": url
+        })
+
+        scan_clause = soup.find("input", {"name": "scan_clause"})["value"]
 
         payload = {
-            "scan_clause": ""
+            "scan_clause": scan_clause
         }
 
-        data = s.post("https://chartink.com/screener/process", data=payload).json()
+        response = s.post(
+            "https://chartink.com/screener/process",
+            data=payload
+        )
+
+        data = response.json()
 
         stocks = []
-        for stock in data["data"]:
-            stocks.append(stock["nsecode"])
+
+        if "data" in data:
+            for stock in data["data"]:
+                stocks.append(stock["nsecode"])
 
         return stocks
+
 
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
