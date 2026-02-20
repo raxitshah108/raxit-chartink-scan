@@ -57,21 +57,68 @@ def send_telegram(message):
 
 
 def main():
-    results = []
+    tech_list = []
+    growth_list = []
+    final_list = []
 
     for stock in STOCKS:
-        result = check_stock(stock)
-        if result:
-            results.append(result)
+        try:
+            ticker = yf.Ticker(stock)
+            hist = ticker.history(period="1y")
 
-    if results:
-        msg = "📊 Raxit Engine v1 Results\n\n"
-        for i, stock in enumerate(results, 1):
-            msg += f"{i}. {stock}\n"
+            if hist.empty:
+                continue
+
+            latest_close = hist["Close"].iloc[-1]
+            high_52 = hist["High"].max()
+
+            if latest_close >= 0.95 * high_52:
+                tech_list.append(stock.replace(".NS", ""))
+
+                income = ticker.quarterly_financials
+                if not income.empty and len(income.columns) >= 4:
+                    latest_rev = income.iloc[0, 0]
+                    prev_rev = income.iloc[0, 3]
+
+                    if latest_rev > prev_rev:
+                        growth_list.append(stock.replace(".NS", ""))
+
+                        earnings = ticker.quarterly_earnings
+                        if earnings is not None and len(earnings) >= 4:
+                            latest_eps = earnings["Earnings"].iloc[-1]
+                            prev_eps = earnings["Earnings"].iloc[-4]
+
+                            info = ticker.info
+                            roe = info.get("returnOnEquity", 0)
+
+                            if latest_eps > prev_eps and roe and roe >= 0.20:
+                                final_list.append(stock.replace(".NS", ""))
+
+        except:
+            continue
+
+    message = "📊 Raxit Engine Scan\n\n"
+
+    if tech_list:
+        message += "Near 52W High:\n"
+        for s in tech_list:
+            message += f"- {s}\n"
+        message += "\n"
+
+    if growth_list:
+        message += "Revenue Growing:\n"
+        for s in growth_list:
+            message += f"- {s}\n"
+        message += "\n"
+
+    if final_list:
+        message += "🔥 Full Raxit Criteria:\n"
+        for s in final_list:
+            message += f"- {s}\n"
     else:
-        msg = "No stocks matched Raxit criteria today."
+        message += "No stocks passed full Raxit criteria today."
 
-    send_telegram(msg)
+    send_telegram(message)
 
 
 if __name__ == "__main__":
