@@ -6,12 +6,15 @@ import yfinance as yf
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-def get_nifty500_list():
-    url = "https://en.wikipedia.org/wiki/NIFTY_500"
-    tables = pd.read_html(url)
-    df = tables[1]   # Constituents table
-    symbols = df['Symbol'].tolist()
-    return [s + ".NS" for s in symbols]
+STOCKS = [
+    "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS",
+    "ICICIBANK.NS", "SBIN.NS", "LT.NS", "ITC.NS",
+    "KOTAKBANK.NS", "AXISBANK.NS", "HCLTECH.NS",
+    "MARUTI.NS", "BAJFINANCE.NS", "BHARTIARTL.NS",
+    "ASIANPAINT.NS", "SUNPHARMA.NS", "ULTRACEMCO.NS",
+    "TITAN.NS", "NESTLEIND.NS", "ADANIENT.NS"
+]
+
 
 
 def check_stock(symbol):
@@ -55,7 +58,7 @@ def main():
     growth_list = []
     final_list = []
     
-    stocks = get_nifty500_list()
+    stocks = STOCKS
     
     for stock in stocks:
         try:
