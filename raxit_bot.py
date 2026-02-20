@@ -1,41 +1,81 @@
-import requests
 import os
+import requests
+import pandas as pd
+import yfinance as yf
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
 
-def get_chartink_data():
-    url = "https://chartink.com/screener/stocks-10-range-2?export=csv"
+# --- Sample stock universe (start small to test)
+STOCKS = [
+    "RELIANCE.NS",
+    "TCS.NS",
+    "INFY.NS",
+    "HDFCBANK.NS",
+    "LT.NS",
+    "ICICIBANK.NS",
+    "SBIN.NS",
+    "BHARTIARTL.NS"
+]
 
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
 
+def check_stock(symbol):
     try:
-        response = requests.get(url, headers=headers, timeout=20)
+        ticker = yf.Ticker(symbol)
 
-        if response.status_code != 200:
-            return []
+        # --- PRICE DATA (1 year)
+        hist = ticker.history(period="1y")
 
-        lines = response.text.splitlines()
+        if hist.empty:
+            return None
 
-        stocks = []
+        latest_close = hist["Close"].iloc[-1]
+        high_52 = hist["High"].max()
 
-        # Skip header row
-        for line in lines[1:]:
-            parts = line.split(",")
+        # Condition 1: Near 52-week high (within 3%)
+        if latest_close < 0.97 * high_52:
+            return None
 
-            # NSE code usually in column index 2
-            if len(parts) > 2:
-                symbol = parts[2].strip()
-                if symbol:
-                    stocks.append(symbol)
+        # --- FINANCIAL DATA
+        financials = ticker.financials
+        income = ticker.quarterly_financials
 
-        return stocks
+        if income.empty or financials.empty:
+            return None
 
-    except Exception as e:
-        return []
+        # Quarterly revenue YoY
+        if len(income.columns) < 4:
+            return None
+
+        latest_rev = income.iloc[0, 0]
+        prev_rev = income.iloc[0, 3]
+
+        if latest_rev <= prev_rev:
+            return None
+
+        # Quarterly EPS YoY
+        earnings = ticker.quarterly_earnings
+        if earnings is None or len(earnings) < 4:
+            return None
+
+        latest_eps = earnings["Earnings"].iloc[-1]
+        prev_eps = earnings["Earnings"].iloc[-4]
+
+        if latest_eps <= prev_eps:
+            return None
+
+        # ROCE approx using ROE proxy (Yahoo limitation)
+        info = ticker.info
+        roe = info.get("returnOnEquity", 0)
+
+        if roe is None or roe < 0.20:
+            return None
+
+        return symbol.replace(".NS", "")
+
+    except:
+        return None
 
 
 def send_telegram(message):
@@ -53,19 +93,22 @@ def send_telegram(message):
 
 
 def main():
-    stocks = get_chartink_data()
+    results = []
 
-    if stocks:
-        message = "📊 Raxit AI - Chartink Scan Results\n\n"
-        for i, stock in enumerate(stocks[:20], 1):
-            message += f"{i}. {stock}\n"
-        message += f"\nTotal Stocks: {len(stocks)}"
+    for stock in STOCKS:
+        result = check_stock(stock)
+        if result:
+            results.append(result)
+
+    if results:
+        msg = "📊 Raxit Engine v1 Results\n\n"
+        for i, stock in enumerate(results, 1):
+            msg += f"{i}. {stock}\n"
     else:
-        message = "No valid stocks processed today."
+        msg = "No stocks matched Raxit criteria today."
 
-    send_telegram(message)
+    send_telegram(msg)
 
 
 if __name__ == "__main__":
     main()
-
