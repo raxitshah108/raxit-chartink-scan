@@ -6,18 +6,12 @@ import yfinance as yf
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-
-# --- Sample stock universe (start small to test)
-STOCKS = [
-    "RELIANCE.NS",
-    "TCS.NS",
-    "INFY.NS",
-    "HDFCBANK.NS",
-    "LT.NS",
-    "ICICIBANK.NS",
-    "SBIN.NS",
-    "BHARTIARTL.NS"
-]
+def get_nifty500_list():
+    url = "https://en.wikipedia.org/wiki/NIFTY_500"
+    tables = pd.read_html(url)
+    df = tables[1]   # Constituents table
+    symbols = df['Symbol'].tolist()
+    return [s + ".NS" for s in symbols]
 
 
 def check_stock(symbol):
@@ -60,7 +54,9 @@ def main():
     tech_list = []
     growth_list = []
     final_list = []
-
+    
+    stocks = get_nifty500_list()
+    
     for stock in STOCKS:
         try:
             ticker = yf.Ticker(stock)
