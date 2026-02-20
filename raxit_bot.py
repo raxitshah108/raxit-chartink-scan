@@ -34,7 +34,7 @@ def check_stock(symbol):
         high_52 = hist["High"].max()
 
         # Condition 1: Near 52-week high (within 3%)
-        if latest_close < 0.97 * high_52:
+        if latest_close < 0.95 * high_52:
             return None
 
         # --- FINANCIAL DATA
