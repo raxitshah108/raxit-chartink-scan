@@ -35,48 +35,12 @@ def check_stock(symbol):
 
         # Condition 1: Near 52-week high (within 3%)
         if latest_close < 0.95 * high_52:
-            return None
+            return symbol.replace(".NS", "")
 
-        # --- FINANCIAL DATA
-        financials = ticker.financials
-        income = ticker.quarterly_financials
-
-        if income.empty or financials.empty:
-            return None
-
-        # Quarterly revenue YoY
-        if len(income.columns) < 4:
-            return None
-
-        latest_rev = income.iloc[0, 0]
-        prev_rev = income.iloc[0, 3]
-
-        if latest_rev <= prev_rev:
-            return None
-
-        # Quarterly EPS YoY
-        earnings = ticker.quarterly_earnings
-        if earnings is None or len(earnings) < 4:
-            return None
-
-        latest_eps = earnings["Earnings"].iloc[-1]
-        prev_eps = earnings["Earnings"].iloc[-4]
-
-        if latest_eps <= prev_eps:
-            return None
-
-        # ROCE approx using ROE proxy (Yahoo limitation)
-        info = ticker.info
-        roe = info.get("returnOnEquity", 0)
-
-        if roe is None or roe < 0.20:
-            return None
-
-        return symbol.replace(".NS", "")
+        return None
 
     except:
         return None
-
 
 def send_telegram(message):
     if not BOT_TOKEN or not CHAT_ID:
