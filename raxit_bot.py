@@ -1,64 +1,41 @@
 import requests
 import os
-from bs4 import BeautifulSoup
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
 
 def get_chartink_data():
-    url = "https://chartink.com/screener/stocks-10-range-2"
+    url = "https://chartink.com/screener/stocks-10-range-2?export=csv"
 
     headers = {
         "User-Agent": "Mozilla/5.0"
     }
 
-    with requests.Session() as s:
-        # Step 1: Get page and CSRF token
-        r = s.get(url, headers=headers)
-        soup = BeautifulSoup(r.text, "html.parser")
-
-        token_tag = soup.find("meta", {"name": "csrf-token"})
-        if not token_tag:
-            return []
-
-        token = token_tag["content"]
-
-        s.headers.update({
-            "X-CSRF-TOKEN": token,
-            "User-Agent": "Mozilla/5.0",
-            "Referer": url
-        })
-
-        # Step 2: Extract scan_clause
-        scan_input = soup.find("input", {"name": "scan_clause"})
-        if not scan_input:
-            return []
-
-        scan_clause = scan_input["value"]
-
-        payload = {
-            "scan_clause": scan_clause
-        }
-
-        # Step 3: Post request to get results
-        response = s.post(
-            "https://chartink.com/screener/process",
-            data=payload
-        )
+    try:
+        response = requests.get(url, headers=headers, timeout=20)
 
         if response.status_code != 200:
             return []
 
-        data = response.json()
+        lines = response.text.splitlines()
 
         stocks = []
 
-        if "data" in data:
-            for stock in data["data"]:
-                stocks.append(stock.get("nsecode", ""))
+        # Skip header row
+        for line in lines[1:]:
+            parts = line.split(",")
+
+            # NSE code usually in column index 2
+            if len(parts) > 2:
+                symbol = parts[2].strip()
+                if symbol:
+                    stocks.append(symbol)
 
         return stocks
+
+    except Exception as e:
+        return []
 
 
 def send_telegram(message):
@@ -82,6 +59,7 @@ def main():
         message = "📊 Raxit AI - Chartink Scan Results\n\n"
         for i, stock in enumerate(stocks[:20], 1):
             message += f"{i}. {stock}\n"
+        message += f"\nTotal Stocks: {len(stocks)}"
     else:
         message = "No valid stocks processed today."
 
@@ -90,5 +68,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
