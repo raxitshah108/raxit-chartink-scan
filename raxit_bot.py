@@ -57,7 +57,7 @@ def main():
     
     stocks = get_nifty500_list()
     
-    for stock in STOCKS:
+    for stock in stocks:
         try:
             ticker = yf.Ticker(stock)
             hist = ticker.history(period="1y")
